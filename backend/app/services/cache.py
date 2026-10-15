@@ -1,17 +1,22 @@
 import json
-import redis.asyncio as redis
-from typing import Dict, Any
 import logging
+from typing import Any
+
+import redis.asyncio as redis
 
 from app.config import settings
-from app.services.reservations import get_owned_property, calculate_total_revenue, calculate_monthly_revenue
+from app.services.reservations import (
+    calculate_monthly_revenue,
+    calculate_total_revenue,
+    get_owned_property,
+)
 
 logger = logging.getLogger(__name__)
 
 # Initialize Redis client (typically configured centrally).
 redis_client = redis.Redis.from_url(settings.redis_url)
 
-async def get_revenue_summary(property_id: str, tenant_id: str, month=None, year=None) -> Dict[str, Any]:
+async def get_revenue_summary(property_id: str, tenant_id: str, month=None, year=None) -> dict[str, Any]:
     """
     Fetches revenue summary, utilizing caching to improve performance.
     """

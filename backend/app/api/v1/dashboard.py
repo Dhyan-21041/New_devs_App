@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Dict, Any
-from app.services.cache import get_revenue_summary
-from app.core.auth import authenticate_request as get_current_user
-from app.services.reservations import get_properties
-from sqlalchemy.exc import SQLAlchemyError
 import logging
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.core.auth import authenticate_request as get_current_user
+from app.models.auth import AuthenticatedUser
+from app.services.cache import get_revenue_summary
+from app.services.reservations import get_properties
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -18,7 +21,7 @@ def require_tenant(current_user):
 
 
 @router.get("/dashboard/properties")
-async def get_dashboard_properties(current_user=Depends(get_current_user)):
+async def get_dashboard_properties(current_user: Annotated[AuthenticatedUser, Depends(get_current_user)]):
     tenant_id = require_tenant(current_user)
     try:
         return await get_properties(tenant_id)
@@ -29,10 +32,10 @@ async def get_dashboard_properties(current_user=Depends(get_current_user)):
 @router.get("/dashboard/summary")
 async def get_dashboard_summary(
     property_id: str,
-    month: int | None = Query(default=None, ge=1, le=12),
-    year: int | None = Query(default=None, ge=2, le=9998),
-    current_user: dict = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    month: Annotated[int | None, Query(ge=1, le=12)] = None,
+    year: Annotated[int | None, Query(ge=2, le=9998)] = None,
+) -> dict[str, Any]:
     
     tenant_id = require_tenant(current_user)
     if (month is None) != (year is None):

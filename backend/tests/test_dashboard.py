@@ -13,8 +13,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
-from redis.exceptions import ConnectionError as RedisConnectionError
 from fastapi import FastAPI
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 

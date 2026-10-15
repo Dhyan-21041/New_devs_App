@@ -1,6 +1,6 @@
-from typing import Dict, Any
-from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
@@ -32,23 +32,23 @@ async def get_owned_property(property_id: str, tenant_id: str):
 
 async def calculate_monthly_revenue(
     property_id: str, tenant_id: str, month: int, year: int, property_timezone: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Use a half-open property-local month, with each boundary converted to UTC."""
     zone = ZoneInfo(property_timezone)
     start = datetime(year, month, 1, tzinfo=zone)
     end = datetime(year + 1, 1, 1, tzinfo=zone) if month == 12 else datetime(year, month + 1, 1, tzinfo=zone)
     return await calculate_total_revenue(
-        property_id, tenant_id, start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+        property_id, tenant_id, start.astimezone(UTC), end.astimezone(UTC)
     )
 
 
 async def calculate_total_revenue(
     property_id: str, tenant_id: str, start_date=None, end_date=None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Aggregate actual reservations; database failures must never become revenue."""
     async with db_pool.get_session() as session:
         period_filter = "AND check_in_date >= :start_date AND check_in_date < :end_date" if start_date else ""
-        params: Dict[str, Any] = {"property_id": property_id, "tenant_id": tenant_id}
+        params: dict[str, Any] = {"property_id": property_id, "tenant_id": tenant_id}
         if start_date:
             params.update(start_date=start_date, end_date=end_date)
         result = await session.execute(text(f"""
@@ -63,7 +63,7 @@ async def calculate_total_revenue(
         if len(rows) > 1:
             raise HTTPException(status_code=422, detail="Revenue contains multiple currencies; a single total is unavailable")
         row = rows[0] if rows else None
-        total = row.total_revenue if row else Decimal("0")
+        total = row.total_revenue if row else Decimal(0)
         return {
             "property_id": property_id,
             "tenant_id": tenant_id,
