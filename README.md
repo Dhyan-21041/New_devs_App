@@ -5,6 +5,10 @@ The investigation addressed incorrect monthly revenue, cross-tenant data exposur
 
 The existing React/Vite, FastAPI, PostgreSQL, and Redis architecture was retained.
 
+## Video walkthrough
+
+[Watch the Loom walkthrough](https://www.loom.com/share/cbc4df6338d54730923e9cf7682d9298).
+
 ## Resolution summary
 
 **The three reported revenue/privacy issues and the secondary session/cache issues listed below have been fixed and verified.**
@@ -218,4 +222,4 @@ Additional verification:
 | `44c29253c` | Verification, backend lint/type cleanup, and walkthrough notes |
 
 See [FIXES.md](FIXES.md) for additional verification details and a suggested 7-minute Loom outline.
-The assignment also requires a separate 5-10 minute Loom recording.
+The recorded walkthrough is linked in the [Video walkthrough](#video-walkthrough) section above.
