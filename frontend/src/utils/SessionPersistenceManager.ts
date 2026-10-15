@@ -17,6 +17,7 @@ export class SessionPersistenceManager {
   private lastActivity: number = Date.now();
   private visibilityChangeHandler: (() => void) | null = null;
   private isRefreshing: boolean = false;
+  private activityHandler = () => { this.lastActivity = Date.now(); };
 
   private constructor() {
     console.log('[SessionPersistence] Manager initialized');
@@ -33,6 +34,7 @@ export class SessionPersistenceManager {
    * Start session persistence monitoring
    */
   start(): void {
+    if (this.refreshTimer !== null) return;
     console.log('[SessionPersistence] Starting session monitoring...');
 
     // 1. Monitor visibility changes for session recovery
@@ -47,9 +49,7 @@ export class SessionPersistenceManager {
 
     // 3. Track user activity
     ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
-      window.addEventListener(event, () => {
-        this.lastActivity = Date.now();
-      }, { passive: true });
+      window.addEventListener(event, this.activityHandler, { passive: true });
     });
 
     // 4. Initial check
@@ -221,6 +221,9 @@ export class SessionPersistenceManager {
       document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
       this.visibilityChangeHandler = null;
     }
+    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+      window.removeEventListener(event, this.activityHandler);
+    });
   }
 
   /**

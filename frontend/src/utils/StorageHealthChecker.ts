@@ -164,6 +164,8 @@ export class StorageHealthChecker {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
+      // The migration marker is deliberately a plain version string, not JSON.
+      if (key === 'app_storage_version') continue;
       
       try {
         const value = localStorage.getItem(key);

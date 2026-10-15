@@ -63,6 +63,11 @@ export const useAppContext = () => {
 const lastModulesByTenant: Record<string, string[]> = {};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  return <AccountAppProvider key={`${user?.id}:${user?.tenant_id}`}>{children}</AccountAppProvider>;
+};
+
+const AccountAppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const authContext = useAuth();
 
   // Normalized "auth" proxy object
@@ -73,7 +78,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       : (authContext.isAuthenticated ? 'authenticated' : 'unauthenticated'),
     permissions: [] as Array<{ section: string; action: string }>,
     modules: [] as string[],
-    tenantId: authContext.user?.user_metadata?.tenant_id || null,
+    tenantId: authContext.user?.tenant_id || authContext.user?.app_metadata?.tenant_id || null,
     companySettings: null,
     tenant: null,
     error: null,
@@ -162,10 +167,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             let bestTs = 0;
             for (let i = 0; i < localStorage.length; i++) {
               const k = localStorage.key(i) || '';
-              if (k.startsWith('app_bootstrap_data_')) {
+              if (auth.tenantId && k === `app_bootstrap_data_${auth.tenantId}`) {
                 const raw = localStorage.getItem(k);
                 if (!raw) continue;
                 const parsed = JSON.parse(raw);
+                const cachedTenant = parsed?.data?.metadata?.tenant_id || parsed?.data?.tenant?.id;
+                if (cachedTenant !== auth.tenantId || parsed?.data?.user?.id !== auth.user?.id) continue;
                 const ts = parsed?.timestamp || 0;
                 if (ts > bestTs) { bestTs = ts; bestKey = k; }
               }

@@ -111,6 +111,7 @@ export class SessionRecovery {
       console.log('[SessionRecovery] No session from getSession, checking localStorage directly...');
       
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) return null;
       const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
       const storedData = localStorage.getItem(storageKey);
       
@@ -155,6 +156,7 @@ export class SessionRecovery {
       console.log('[SessionRecovery] Persisting session to storage...');
       
       await supabase.auth.setSession({
+        ...session,
         access_token: session.access_token,
         refresh_token: session.refresh_token
       });
@@ -170,9 +172,7 @@ export class SessionRecovery {
    */
   clearStoredSession(): void {
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
-      localStorage.removeItem(storageKey);
+      localStorage.removeItem('base360-auth-token');
       console.log('[SessionRecovery] Stored session cleared');
     } catch (error) {
       console.error('[SessionRecovery] Failed to clear stored session:', error);

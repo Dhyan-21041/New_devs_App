@@ -12,6 +12,7 @@
 import { supabase } from './supabase';
 import { sessionManager } from '../utils/sessionManager';
 import { withRetry, handleApiError, classifyError } from '../utils/apiErrorHandler';
+import { decodeJWTPayload } from '../utils/jwtUtils';
 
 // Get backend URL with fallback for misconfigured production environments
 const getBackendUrl = () => {
@@ -185,12 +186,12 @@ export class SecureAPIClient {
         }
         // Check if it's a valid JWT
         else if (token.includes('.') && token.split('.').length === 3) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          extractedTenantId = payload.user_metadata?.tenant_id || payload.tenant_id;
+          const payload = decodeJWTPayload(token);
+          extractedTenantId = payload?.tenant_id || payload?.app_metadata?.tenant_id;
         }
 
         if (extractedTenantId) {
-          // Validate tenant ID format (should be UUID)
+          // Tenant IDs are opaque text identifiers, including tenant-a/tenant-b.
           if (this.isValidTenantId(extractedTenantId)) {
             this.cachedTenantId = extractedTenantId;
             return this.cachedTenantId;
@@ -222,14 +223,14 @@ export class SecureAPIClient {
     try {
       const token = this.cachedToken;
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = decodeJWTPayload(token);
         // Use user sub (unique ID) + email as session key for isolation
-        const userSub = payload.sub;
-        const userEmail = payload.email;
+        const userSub = payload?.sub || payload?.id;
+        const userEmail = payload?.email;
 
         if (userSub && userEmail) {
-          // Create short hash to avoid very long cache keys
-          const sessionKey = `${userSub.substring(0, 8)}-${userEmail.split('@')[0]}`;
+          // Keep the full identity to avoid prefix collisions between users.
+          const sessionKey = `${userSub}-${userEmail}`;
           return sessionKey;
         }
       }
@@ -243,9 +244,7 @@ export class SecureAPIClient {
    * Validate tenant ID format for security
    */
   private isValidTenantId(tenantId: string): boolean {
-    // Check for UUID format (basic validation)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return typeof tenantId === 'string' && tenantId.length > 0 && uuidRegex.test(tenantId);
+    return typeof tenantId === 'string' && tenantId.trim().length > 0;
   }
 
   /**
@@ -619,12 +618,17 @@ export class SecureAPIClient {
     isGetRequest: boolean
   ): Promise<T> {
     const MAX_RETRIES = 3; // Increased for better resilience
+    let requestToken = this.cachedToken;
     const RETRY_DELAY_BASE = 1000; // Reasonable delay for retries
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        if (requestToken !== this.cachedToken) {
+          throw new TenantIsolationError('Account changed while request was pending');
+        }
         const headers = await this.getAuthHeaders();
+        if (requestToken === null) requestToken = this.cachedToken;
         const url = `${this.backendUrl}${endpoint}`;
 
 
@@ -642,6 +646,9 @@ export class SecureAPIClient {
             ...options.headers
           }
         });
+        if (requestToken !== this.cachedToken) {
+          throw new TenantIsolationError('Account changed while request was pending');
+        }
 
         if (!response.ok) {
           let bodyText = '';

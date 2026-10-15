@@ -1,11 +1,11 @@
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, createContext, useContext, useEffect, type ReactNode } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext.new";
+import { AuthProvider, useAuth } from "./contexts/AuthContext.new";
 import { checkAndClearInvalidTokens } from "./utils/clearAuthTokens";
 import { AppProvider } from "./contexts/AppContext";
 import { ProtectedRoute } from "./components/ProtectedRoute.new";
@@ -30,10 +30,7 @@ import { Toaster } from "react-hot-toast";
 import AppLoadingGate from "./components/AppLoadingGate";
 import { ToastProvider } from "./contexts/ToastContext";
 import GlobalToast from "./components/GlobalToast";
-import { QueryClient } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
-import localforage from "localforage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Create context for sidebar state
 interface SidebarContextType {
@@ -69,23 +66,27 @@ export const useSidebar = () => {
   return context;
 };
 
-// Configure QueryClient with persistent caching
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      refetchOnWindowFocus: true,
-      refetchOnMount: true,
-      retry: 1,
-    },
-  },
-});
+// Give each account its own in-memory query cache.
+function AccountQueryProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return <AccountQueryCache key={`${user?.id}:${user?.tenant_id}`}>{children}</AccountQueryCache>;
+}
 
-// Create persister using localforage (IndexedDB)
-const persister = createSyncStoragePersister({
-  storage: localforage as any,
-});
+function AccountQueryCache({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        gcTime: 1000 * 60 * 60 * 24,
+        staleTime: 1000 * 60 * 5,
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
+        retry: 1,
+      },
+    },
+  }));
+  useEffect(() => () => { queryClient.clear(); }, [queryClient]);
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
 
 function AppWrapper() {
   // Initialize localStorage manager on app startup
@@ -120,17 +121,10 @@ function AppWrapper() {
           <AuthProvider>
             <AppProvider>
               <ToastProvider>
-                <PersistQueryClientProvider
-                  client={queryClient}
-                  persistOptions={{
-                    persister,
-                    maxAge: 1000 * 60 * 60 * 24,
-                    buster: "",
-                  }}
-                >
+                <AccountQueryProvider>
                   <AppContent />
                   <GlobalToast />
-                </PersistQueryClientProvider>
+                </AccountQueryProvider>
               </ToastProvider>
             </AppProvider>
           </AuthProvider>
