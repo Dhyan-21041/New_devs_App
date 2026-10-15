@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
@@ -29,22 +29,27 @@ async def get_dashboard_properties(current_user=Depends(get_current_user)):
 @router.get("/dashboard/summary")
 async def get_dashboard_summary(
     property_id: str,
+    month: int | None = Query(default=None, ge=1, le=12),
+    year: int | None = Query(default=None, ge=2, le=9998),
     current_user: dict = Depends(get_current_user)
 ) -> Dict[str, Any]:
     
     tenant_id = require_tenant(current_user)
+    if (month is None) != (year is None):
+        raise HTTPException(status_code=422, detail="Provide both month and year")
     
     try:
-        revenue_data = await get_revenue_summary(property_id, tenant_id)
+        revenue_data = await get_revenue_summary(property_id, tenant_id, month, year)
     except (SQLAlchemyError, OSError, RuntimeError):
         logger.exception("Unable to load dashboard revenue")
         raise HTTPException(status_code=503, detail="Revenue data temporarily unavailable")
     
-    total_revenue_float = float(revenue_data['total'])
-    
     return {
         "property_id": revenue_data['property_id'],
-        "total_revenue": total_revenue_float,
+        "total_revenue": revenue_data['total'],
         "currency": revenue_data['currency'],
-        "reservations_count": revenue_data['count']
+        "reservations_count": revenue_data['count'],
+        "month": revenue_data['month'],
+        "year": revenue_data['year'],
+        "timezone": revenue_data['timezone'],
     }

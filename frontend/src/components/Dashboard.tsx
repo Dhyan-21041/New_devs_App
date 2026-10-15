@@ -11,6 +11,7 @@ const Dashboard: React.FC = () => {
 const TenantDashboard: React.FC = () => {
   const [properties, setProperties] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedProperty, setSelectedProperty] = useState('');
+  const [period, setPeriod] = useState('2024-03');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -46,6 +47,17 @@ const TenantDashboard: React.FC = () => {
               
               {/* Property Selector */}
               <div className="flex flex-col sm:items-end">
+                <label htmlFor="dashboard-month" className="text-xs font-medium text-gray-700 mb-1">Reporting Month</label>
+                <input
+                  id="dashboard-month"
+                  type="month"
+                  min="0002-01"
+                  max="9998-12"
+                  required
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="block w-full px-3 py-2 mb-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
                 <label htmlFor="dashboard-property" className="text-xs font-medium text-gray-700 mb-1">Select Property</label>
                 <select
                   id="dashboard-property"
@@ -68,7 +80,10 @@ const TenantDashboard: React.FC = () => {
             {loading && <p role="status">Loading properties...</p>}
             {error && <p role="alert" className="text-red-600">{error}</p>}
             {!loading && !error && !selectedProperty && <p>No properties available.</p>}
-            {selectedProperty && <RevenueSummary key={selectedProperty} propertyId={selectedProperty} />}
+            {selectedProperty && period && (
+              <RevenueSummary key={`${selectedProperty}:${period}`} propertyId={selectedProperty}
+                year={Number(period.split('-')[0])} month={Number(period.split('-')[1])} />
+            )}
           </div>
         </div>
       </div>
