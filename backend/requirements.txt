@@ -13,12 +13,13 @@ pydantic-settings
 pydantic[email]
 pyhumps==3.8.0
 python-jose
+PyJWT>=2.0.0
 python-multipart
 pytz
 redis>=5.0.0
 requests
 sendgrid
-sqlalchemy>=2.0.0
+sqlalchemy[asyncio]>=2.0.0
 supabase
 tenacity>=8.0.0
 uvicorn[standard]
